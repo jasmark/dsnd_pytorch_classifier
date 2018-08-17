@@ -98,7 +98,7 @@ def predict(image_path, model, category_names, topk=5):
     return preds, probs
 
 def get_category_names(classes):
-    with open('cat_to_name.json', 'r') as f:
+    with open(classes, 'r') as f:
         cat_to_name = json.load(f)
     return cat_to_name
  

@@ -53,6 +53,11 @@ def preprocess_data(data_directory):
 def build_model(arch, hidden_units, learning_rate):
     model = model = eval("models." + arch + '(pretrained=True)')
 
+    # check input size of classifier loaded by default by the model
+    # need to define this same input to our classifier below
+    # to accomodate for different model types the user could select
+    classifier_input_size = model.classifier[0].in_features
+
     # freeze params on model
     for param in model.parameters():
         param.requires_grad = False
@@ -60,7 +65,7 @@ def build_model(arch, hidden_units, learning_rate):
     # create classifier and connect to model, output 102 classes to match number of flower classes
     from collections import OrderedDict
     classifier = nn.Sequential(OrderedDict([
-                              ('fc1', nn.Linear(25088, hidden_units)),
+                              ('fc1', nn.Linear(classifier_input_size, hidden_units)),
                               ('relu1', nn.ReLU()),
                               ('drop1', nn.Dropout(p=0.2)),
                               ('fc2', nn.Linear(hidden_units, 102)),
@@ -126,7 +131,8 @@ def train_model(model, criterion, optimizer, epochs, trainloader, validloader, g
                       "Loss: {:.4f}".format(running_loss/print_every))
 
                 running_loss = 0
-                
+
+         # outputs the validation accuracy after each training epoch       
         check_accuracy_on_validation(validloader)
     return None
 
