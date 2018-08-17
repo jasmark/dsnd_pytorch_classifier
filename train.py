@@ -79,11 +79,13 @@ def build_model(arch, hidden_units, learning_rate):
 
     return model, criterion, optimizer
 
-def check_accuracy_on_validation(validloader): 
+def check_accuracy_on_validation(validloader, criterion): 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     correct = 0
     total = 0
+    val_loss = 0
+
     with torch.no_grad():
         for data in validloader:
             images, labels = data
@@ -92,12 +94,14 @@ def check_accuracy_on_validation(validloader):
             labels = labels.to(device)
             
             outputs = model(images)
+            val_loss += criterion(outputs, labels).item()
+
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            val_accuracy = (100 * correct / total)
 
-    print('Accuracy of the network on the %d validation images: %d %%' % (total, (100 * correct / total)))
-    return None
+    return val_loss, val_accuracy
 
 def train_model(model, criterion, optimizer, epochs, trainloader, validloader, gpu):
     
@@ -127,13 +131,20 @@ def train_model(model, criterion, optimizer, epochs, trainloader, validloader, g
             running_loss += loss.item()
 
             if steps % print_every == 0:
+                model.eval()
+
+                val_loss, val_accuracy = check_accuracy_on_validation(validloader, criterion)
+
                 print("Epoch: {}/{}... ".format(e+1, epochs),
-                      "Loss: {:.4f}".format(running_loss/print_every))
+                      "Training Loss: {:.4f}".format(running_loss/print_every),
+                      "Validation Loss: {:.4f}".format(val_loss),
+                      "Validation Accuracy: {:.2f}".format(val_accuracy))
 
                 running_loss = 0
+                model.train()
 
          # outputs the validation accuracy after each training epoch       
-        check_accuracy_on_validation(validloader)
+        
     return None
 
 def save_checkpoint(save_dir, model, epochs, arch, optimizer, class_index):
