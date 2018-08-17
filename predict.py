@@ -15,7 +15,7 @@ def train_args():
     parser.add_argument('input_image', type=str)
     parser.add_argument('checkpoint', type=str)
     parser.add_argument('--top_k', type=int, default=1)
-    parser.add_argument('--category_names', type=str)    
+    parser.add_argument('--category_names', type=str, default="cat_to_name.json")    
     parser.add_argument('--gpu', action="store_true")    
 
     return parser.parse_args()
@@ -31,11 +31,8 @@ def load_checkpoint(checkpoint):
     classifier.load_state_dict(checkpoint['classifier_state_dict']),
     model.classifier = classifier
     
-    #optimizer = optim.Adam(model.classifier.parameters(), lr=0.001)
-    #optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     class_index = {v: k for k, v in checkpoint['class_index'].items()}
     
-
     return model, class_index
 
 def process_image(image_path):
@@ -70,15 +67,24 @@ def process_image(image_path):
     return(img)  
     
 
-def predict(image_path, model, category_names, topk=5):
+def predict(image_path, model, category_names, gpu, topk=5):
     ''' Predict the class (or classes) of an image using a trained deep learning model.
     '''
-    
+
     image = torch.FloatTensor(process_image(image_path))
     image = image.unsqueeze_(0)
 
     model.eval()
+    # model should already be on cpu so this should essentially be a no-op but being safe
     model.to('cpu')
+
+    # if gpu is selected then try to change to gpu but fallback to cpu if gpu isn't actually available
+    if gpu:
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        model = model.to(device)
+        image = image.to(device)
+        if device == 'cpu':
+            print("GPU was selected but is not available. Using CPU.")
 
     with torch.no_grad():
         output = model.forward(image)
@@ -105,7 +111,7 @@ def get_category_names(classes):
 
 args = train_args()
 model, class_index = load_checkpoint('checkpoint.pth')
-probs, preds = predict(args.input_image, model, args.category_names, args.top_k)
+probs, preds = predict(args.input_image, model, args.category_names,  args.gpu, args.top_k)
 
 print('Chances are this is a: \n')
 
